@@ -1,0 +1,42 @@
+# Home server front door. Every app gets https://<name>.local with a certificate from
+# Caddy's own private certificate authority ("Home Server CA"), which lives only on this
+# Mac (./caddy-data). Install that CA once on each phone/laptop (README, "Trust the
+# certificate") and the padlock shows with no warnings. Nothing touches the internet.
+{
+	# Use the private CA for every site, never Let's Encrypt (.local names can't get public certs).
+	local_certs
+	# Don't try to add the CA to the container's own trust store.
+	skip_install_trust
+	# The sites below do their own http -> https redirect (so /home-ca.crt stays on http).
+	auto_https disable_redirects
+	# Browsers reaching the plain IP over https send no name; use the Mac's IP certificate.
+	default_sni {$HOME_IP}
+	pki {
+		ca local {
+			name "Home Server"
+		}
+	}
+}
+
+# Download link for the CA certificate, on plain http so a new phone can fetch it
+# before it trusts anything: http://<any app name>.local/home-ca.crt or http://<ip>/home-ca.crt
+(ca_download) {
+	handle /home-ca.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		header Content-Disposition "attachment; filename=home-ca.crt"
+		file_server
+	}
+}
+
+# Plain http: offer the CA download, send everything else to https.
+(to_https) {
+	import ca_download
+	handle {
+		redir https://{host}{uri} permanent
+	}
+}
+
+# One file per app in sites/, written by bin/add-app.sh.
+import sites/*.caddy

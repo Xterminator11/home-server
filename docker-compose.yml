@@ -1,0 +1,34 @@
+# Home server front door: one Caddy for every app on this Mac, on ports 80 and 443.
+# Each app is reached by its own name (https://kids-dashboard.local, https://recipes.local, ...)
+# with a certificate from Caddy's private CA. Apps join the shared "home-proxy" Docker
+# network so Caddy can reach them by container name.
+# Add an app with:  bash bin/add-app.sh <name> <container>:<port>
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    container_name: home-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"     # HTTP/3
+    environment:
+      # This Mac's fixed IP, so https://<ip> gets a certificate too. Set by bin/setup.sh in .env.
+      HOME_IP: ${HOME_IP:-127.0.0.1}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      # The private CA (its key included) and the app certificates. Back this folder up;
+      # never commit it. If it's lost, a new CA is made and every device must trust it again.
+      - ./caddy-data:/data
+      - caddy_config:/config
+    networks:
+      - home-proxy
+    restart: unless-stopped
+
+networks:
+  # Shared with the apps. bin/setup.sh creates it (docker network create home-proxy).
+  home-proxy:
+    external: true
+
+volumes:
+  caddy_config:

@@ -1,0 +1,4 @@
+# The Mac's plain IP address (and any other unknown name) goes to kids-dashboard.
+:80 {
+	reverse_proxy kids-dashboard:8787
+}

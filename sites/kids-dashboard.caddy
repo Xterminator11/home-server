@@ -1,0 +1,4 @@
+# kids-dashboard -> kids-dashboard:8787  (written by bin/add-app.sh)
+http://kids-dashboard.local {
+	reverse_proxy kids-dashboard:8787
+}
